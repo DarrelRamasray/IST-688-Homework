@@ -1,9 +1,10 @@
 #DARREL RAMASRAY
 #IST 688 - Building HC-AI Apps
-#Lab01
+#HW1
 
 import streamlit as st
 from openai import OpenAI
+from pypdf import PdfReader #Library used to read PDF files
 
 # Show title and description.
 st.title("MY Document question answering")
@@ -12,6 +13,12 @@ st.write(
     "To use this app, you need to provide an OpenAI API key, which you can get [here](https://platform.openai.com/account/api-keys). "
 )
 
+def read_pdf(file) -> str:  #Reads a PDF file into a single string
+    reader = PdfReader(file)
+    text = ""
+    for page in reader.pages:
+        text += (page.extract_text() or "") + "\n"
+    return text
 
 @st.cache_data  #Caches result
 def is_valid_key(key: str) -> bool:  #Validation function
@@ -20,7 +27,6 @@ def is_valid_key(key: str) -> bool:  #Validation function
         return True
     except Exception:
         return False
-
 
 # Ask user for their OpenAI API key via `st.text_input`.
 # Alternatively, you can store the API key in `./.streamlit/secrets.toml` and access it
@@ -38,9 +44,10 @@ else:
 
     # Let the user upload a file via `st.file_uploader`.
     uploaded_file = st.file_uploader(
-        "Upload a document (.txt or .md)", type=("txt", "md")
+        "Upload a document (.txt or .pdf)",
+        type=("txt", "pdf"),  #Only .txt and .pdf
     )
-
+    
     # Ask the user for a question via `st.text_area`.
     question = st.text_area(
         "Now ask a question about the document!",
@@ -51,7 +58,16 @@ else:
     if uploaded_file and question:
 
         # Process the uploaded file and question.
-        document = uploaded_file.read().decode()
+        #***
+        file_extension = uploaded_file.name.split('.')[-1]  #Grabs whatever follows the last dot
+        if file_extension == 'txt': #For .txt files
+            document = uploaded_file.read().decode()  #Decodes the raw bytes into a string
+        elif file_extension == 'pdf': #For .pdf files
+            document = read_pdf(uploaded_file)
+        else:
+            st.error("Unsupported file type.")  #Error displayed
+            st.stop()  #Stops the run
+
         messages = [
             {
                 "role": "user",
